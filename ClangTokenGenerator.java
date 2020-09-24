@@ -1,4 +1,7 @@
-//@category Saving.Throw
+/*
+ * Ghidra Script by Xenios91
+ * For Glyph
+ */
 //@keybinding
 //@menupath
 //@toolbar
@@ -20,8 +23,14 @@ import ghidra.program.model.listing.Program;
 import ghidra.program.model.pcode.HighFunction;
 import ghidra.program.model.symbol.SymbolIterator;
 
+/**
+ * The Class ClangTokenGenerator.
+ */
 public class ClangTokenGenerator extends GhidraScript {
 
+	/**
+	 * The Class FunctionDetails.
+	 */
 	private class FunctionDetails {
 		private String lowAddress;
 		private String highAddress;
@@ -58,6 +67,12 @@ public class ClangTokenGenerator extends GhidraScript {
 	private DecompInterface decomplib;
 	private int decompilationTimeout = 60;
 
+	/**
+	 * Decompile function.
+	 *
+	 * @param f the function to decompile.
+	 * @return the high function of the decompiled function.
+	 */
 	public HighFunction decompileFunction(Function f) {
 		HighFunction hfunction = null;
 
@@ -73,8 +88,11 @@ public class ClangTokenGenerator extends GhidraScript {
 		return hfunction;
 	}
 
-	/*
-	 * set up the decompiler
+	/**
+	 * Sets the up decompiler.
+	 *
+	 * @param program the program to decompile.
+	 * @return the decomp interface
 	 */
 	private DecompInterface setUpDecompiler(Program program) {
 		DecompInterface decompInterface = new DecompInterface();
@@ -98,11 +116,23 @@ public class ClangTokenGenerator extends GhidraScript {
 		return decompInterface;
 	}
 
+	/**
+	 * Generate address range.
+	 *
+	 * @param functionDetails a FunctionsDetails class to fill out the address space
+	 *                        of its function.
+	 * @param function        the function to retrieve the address space of.
+	 */
 	private void generateAddressRange(FunctionDetails functionDetails, Function function) {
 		functionDetails.setLowAddress(function.getBody().getMinAddress().toString());
 		functionDetails.setHighAddress(function.getBody().getMaxAddress().toString());
 	}
 
+	/**
+	 * Generate tokens.
+	 *
+	 * @return A list of Clang Tokens
+	 */
 	private List<FunctionDetails> generateTokens() {
 		List<FunctionDetails> functionDetailsList = new ArrayList<>();
 		SymbolIterator symbolIter = this.currentProgram.getSymbolTable().getAllSymbols(true);
@@ -116,7 +146,7 @@ public class ClangTokenGenerator extends GhidraScript {
 				generateAddressRange(functionDetails, function);
 				List<ClangNode> tokenList = new ArrayList<>();
 				dr.getCCodeMarkup().flatten(tokenList);
-				
+
 				List<ClangNode> newTokenList = new ArrayList<>();
 				tokenList.forEach(token -> {
 					if (!token.toString().isBlank()) {
@@ -131,6 +161,11 @@ public class ClangTokenGenerator extends GhidraScript {
 		return functionDetailsList;
 	}
 
+	/**
+	 * Run.
+	 *
+	 * @throws Exception the exception
+	 */
 	@Override
 	public void run() throws Exception {
 		this.decomplib = setUpDecompiler(this.currentProgram);
