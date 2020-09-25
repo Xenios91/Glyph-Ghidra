@@ -7,9 +7,12 @@
 //@toolbar
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.Socket;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -75,7 +78,8 @@ public class ClangTokenGenerator extends GhidraScript {
 	private static final int DECOMPILATION_TIMEOUT = 60;
 	private static final String ERRORED_FUNCTIONS_KEY = "erroredFunctions";
 	private static final String FUNCTIONS_KEY = "functions";
-	private static final String STATUS_URL = "e6574316-f6f7-4891-abb3-bcb9672870af.mock.pstmn.io";
+	private static final String URL = "http://e6574316-f6f7-4891-abb3-bcb9672870af.mock.pstmn.io";
+	private static final String STATUS_ENDPOINT = "/status";
 
 	/**
 	 * Decompile function.
@@ -145,7 +149,7 @@ public class ClangTokenGenerator extends GhidraScript {
 	 */
 	private Map<String, List<FunctionDetails>> generateTokens() {
 		sendData(String.format("{\"status\": \"generating tokens for: %s\"}", this.currentProgram.getName()),
-				ClangTokenGenerator.STATUS_URL);
+				ClangTokenGenerator.STATUS_ENDPOINT);
 		final Map<String, List<FunctionDetails>> functionsMap = Map.of(ClangTokenGenerator.FUNCTIONS_KEY,
 				new ArrayList<>(), ClangTokenGenerator.ERRORED_FUNCTIONS_KEY, new ArrayList<>());
 		final SymbolIterator symbolIter = this.currentProgram.getSymbolTable().getAllSymbols(true);
@@ -184,7 +188,7 @@ public class ClangTokenGenerator extends GhidraScript {
 			}
 		});
 		sendData(String.format("{\"status\": \"token generation complete for: %s\"}", this.currentProgram.getName()),
-				ClangTokenGenerator.STATUS_URL);
+				ClangTokenGenerator.STATUS_ENDPOINT);
 		return functionsMap;
 	}
 
@@ -209,24 +213,39 @@ public class ClangTokenGenerator extends GhidraScript {
 	 * Send data.
 	 *
 	 * @param data     the data to send to the server.
-	 * @param hostName the host name to send data do.
+	 * @param endPoint the host name to send data do.
 	 */
-	private void sendData(String data, String hostName) {
+	private void sendData(String data, String endPoint) {
 		final int portNumber = 80;
 		final StringBuilder response = new StringBuilder();
-		try (Socket socket = new Socket(hostName, portNumber);
-				PrintWriter printOut = new PrintWriter(socket.getOutputStream(), true);
-				BufferedReader serverInput = new BufferedReader(new InputStreamReader(socket.getInputStream()));) {
+		int responseCode;
 
-			printOut.print("POST /status HTTP/1.1rn");
-			printOut.print("Content-Length: " + data.length() + "rn");
-			printOut.print("Content-Type: application/json");
-			printOut.print(data);
-			printOut.flush();
-			response.append(serverInput.readLine());
-			println(response.toString());
-		} catch (Exception e) {
-			println(e.toString());
+		try {
+			URL url = new URL(ClangTokenGenerator.URL + ":" + portNumber + endPoint);
+			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+			connection.setRequestMethod("POST");
+			connection.setDoOutput(true);
+			connection.setFixedLengthStreamingMode(data.length());
+			connection.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+			connection.connect();
+			try (OutputStream os = connection.getOutputStream()) {
+				os.write(data.getBytes(StandardCharsets.UTF_8));
+				os.flush();
+
+				responseCode = connection.getResponseCode();
+
+				if (responseCode < 300 && responseCode >= 200) {
+					String line = null;
+					try (BufferedReader bufferedReader = new BufferedReader(
+							new InputStreamReader(connection.getInputStream()))) {
+						while ((line = bufferedReader.readLine()) != null) {
+							response.append(line);
+						}
+					}
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -238,7 +257,7 @@ public class ClangTokenGenerator extends GhidraScript {
 	@Override
 	public void run() throws Exception {
 		sendData(String.format("{\"status\": \"starting for: %s\"}", this.currentProgram.getName()),
-				ClangTokenGenerator.STATUS_URL);
+				ClangTokenGenerator.STATUS_ENDPOINT);
 		this.decomplib = setUpDecompiler(this.currentProgram);
 		if (!this.decomplib.openProgram(this.currentProgram)) {
 			printf("Decompiler error: %s\n", this.decomplib.getLastMessage());
@@ -254,10 +273,10 @@ public class ClangTokenGenerator extends GhidraScript {
 
 			if (json != null && !json.isBlank()) {
 				sendData(json, "localhost");
-				sendData(String.format("{\"status\": \"complete: %s\"}", ClangTokenGenerator.STATUS_URL),
+				sendData(String.format("{\"status\": \"complete: %s\"}", ClangTokenGenerator.STATUS_ENDPOINT),
 						this.currentProgram.getName());
 			} else {
-				sendData(String.format("{\"status\": \"failed: %s\"}", ClangTokenGenerator.STATUS_URL),
+				sendData(String.format("{\"status\": \"failed: %s\"}", ClangTokenGenerator.STATUS_ENDPOINT),
 						this.currentProgram.getName());
 			}
 			println("Token Generation Complete");
