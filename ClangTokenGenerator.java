@@ -6,8 +6,15 @@
 //@menupath
 //@toolbar
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
+import com.google.gson.Gson;
 
 import ghidra.app.decompiler.ClangNode;
 import ghidra.app.decompiler.DecompInterface;
@@ -34,7 +41,7 @@ public class ClangTokenGenerator extends GhidraScript {
 	private class FunctionDetails {
 		private String lowAddress;
 		private String highAddress;
-		private List<ClangNode> tokenList;
+		private List<String> tokenList;
 
 		public String getLowAddress() {
 			return lowAddress;
@@ -52,20 +59,23 @@ public class ClangTokenGenerator extends GhidraScript {
 			this.highAddress = highAddress;
 		}
 
-		public List<ClangNode> getTokenList() {
+		public List<String> getTokenList() {
 			if (tokenList == null) {
 				this.tokenList = new ArrayList<>();
 			}
 			return tokenList;
 		}
 
-		public void setTokenList(List<ClangNode> tokenList) {
+		public void setTokenList(List<String> tokenList) {
 			this.tokenList = tokenList;
 		}
 	}
 
 	private DecompInterface decomplib;
-	private int decompilationTimeout = 60;
+	private static final int DECOMPILATION_TIMEOUT = 60;
+	private static final String ERRORED_FUNCTIONS_KEY = "erroredFunctions";
+	private static final String FUNCTIONS_KEY = "functions";
+	private static final String STATUS_URL = "localhost/status";
 
 	/**
 	 * Decompile function.
@@ -133,32 +143,91 @@ public class ClangTokenGenerator extends GhidraScript {
 	 *
 	 * @return A list of Clang Tokens
 	 */
-	private List<FunctionDetails> generateTokens() {
-		List<FunctionDetails> functionDetailsList = new ArrayList<>();
-		SymbolIterator symbolIter = this.currentProgram.getSymbolTable().getAllSymbols(true);
+	private Map<String, List<FunctionDetails>> generateTokens() {
+		sendData(String.format("{\"status\": \"generating tokens for: %s\"}", ClangTokenGenerator.STATUS_URL),
+				this.currentProgram.getName());
+		final Map<String, List<FunctionDetails>> functionsMap = Map.of(ClangTokenGenerator.FUNCTIONS_KEY,
+				new ArrayList<>(), ClangTokenGenerator.ERRORED_FUNCTIONS_KEY, new ArrayList<>());
+		final SymbolIterator symbolIter = this.currentProgram.getSymbolTable().getAllSymbols(true);
+		final FunctionManager functionManager = this.getCurrentProgram().getFunctionManager();
+		println("Retrieving all internal functions");
+		symbolIter.forEachRemaining(symbol -> {
 
-		while (symbolIter.hasNext()) {
-			FunctionManager functionManager = this.getCurrentProgram().getFunctionManager();
-			Function function = functionManager.getFunctionAt(symbolIter.next().getAddress());
+			final Function function = functionManager.getFunctionAt(symbol.getAddress());
+
 			if (function != null && !function.isExternal()) {
-				DecompileResults dr = decomplib.decompileFunction(function, this.decompilationTimeout, null);
-				FunctionDetails functionDetails = new FunctionDetails();
+				final DecompileResults dr = decomplib.decompileFunction(function,
+						ClangTokenGenerator.DECOMPILATION_TIMEOUT, null);
+				final FunctionDetails functionDetails = new FunctionDetails();
 				generateAddressRange(functionDetails, function);
-				List<ClangNode> tokenList = new ArrayList<>();
+				final List<ClangNode> tokenList = new ArrayList<>();
 				dr.getCCodeMarkup().flatten(tokenList);
 
-				List<ClangNode> newTokenList = new ArrayList<>();
+				final List<String> newTokenList = new ArrayList<>();
+
+				String key = null;
+
+				if (tokenList.get(2).toString().contains("/*")) {
+					key = ClangTokenGenerator.ERRORED_FUNCTIONS_KEY;
+				} else {
+					key = ClangTokenGenerator.FUNCTIONS_KEY;
+				}
+
 				tokenList.forEach(token -> {
 					if (!token.toString().isBlank()) {
-						newTokenList.add(token);
+						newTokenList.add(token.toString());
 					}
 				});
-				functionDetails.setTokenList(newTokenList);
-				functionDetailsList.add(functionDetails);
-			}
 
+				functionDetails.setTokenList(newTokenList);
+				functionsMap.get(key).add(functionDetails);
+			}
+		});
+		sendData(String.format("{\"status\": \"token generation complete for: %s\"}", ClangTokenGenerator.STATUS_URL),
+				this.currentProgram.getName());
+		return functionsMap;
+	}
+
+	/**
+	 * Creates the json.
+	 *
+	 * @param functionsMap a map of good and errored functions from analysis.
+	 * @return a json of the functions map.
+	 */
+	private String createJson(Map<String, List<FunctionDetails>> functionsMap) {
+		Gson gson = new Gson();
+		String json = null;
+		try {
+			json = gson.toJson(functionsMap);
+		} catch (Exception e) {
+			println(e.toString());
 		}
-		return functionDetailsList;
+		return json;
+	}
+
+	/**
+	 * Send data.
+	 *
+	 * @param data     the data to send to the server.
+	 * @param hostName the host name to send data do.
+	 */
+	private void sendData(String data, String hostName) {
+		final int portNumber = 8080;
+		final StringBuilder response = new StringBuilder();
+		try (Socket socket = new Socket(hostName, portNumber);
+				PrintWriter printOut = new PrintWriter(socket.getOutputStream(), true);
+				BufferedReader serverInput = new BufferedReader(new InputStreamReader(socket.getInputStream()));) {
+
+			printOut.print("POST /status HTTP/1.1rn");
+			printOut.print("Content-Length: " + data.length() + "rn");
+			printOut.print("Content-Type: application/json");
+			printOut.print(data);
+			printOut.flush();
+			response.append(serverInput.readLine());
+			println(response.toString());
+		} catch (Exception e) {
+			println(e.toString());
+		}
 	}
 
 	/**
@@ -168,13 +237,30 @@ public class ClangTokenGenerator extends GhidraScript {
 	 */
 	@Override
 	public void run() throws Exception {
+		sendData(String.format("{\"status\": \"starting for: %s\"}", ClangTokenGenerator.STATUS_URL),
+				this.currentProgram.getName());
 		this.decomplib = setUpDecompiler(this.currentProgram);
 		if (!this.decomplib.openProgram(this.currentProgram)) {
 			printf("Decompiler error: %s\n", this.decomplib.getLastMessage());
 		} else {
-			List<FunctionDetails> functionDetails = generateTokens();
-			functionDetails.forEach(x -> System.out.println(x.getTokenList()));
-			System.out.println("Complete");
+			Map<String, List<FunctionDetails>> functionsMap = generateTokens();
+			List<FunctionDetails> functions = functionsMap.get(ClangTokenGenerator.FUNCTIONS_KEY);
+			List<FunctionDetails> erroredFunctions = functionsMap.get(ClangTokenGenerator.ERRORED_FUNCTIONS_KEY);
+			functions.forEach(function -> printf("Function found: %s\n", function.getTokenList().toString()));
+			erroredFunctions
+					.forEach(function -> printf("Decompilation Error: %s\n", function.getTokenList().toString()));
+
+			String json = createJson(functionsMap);
+
+			if (json != null && !json.isBlank()) {
+				sendData(json, "localhost");
+				sendData(String.format("{\"status\": \"complete: %s\"}", ClangTokenGenerator.STATUS_URL),
+						this.currentProgram.getName());
+			} else {
+				sendData(String.format("{\"status\": \"failed: %s\"}", ClangTokenGenerator.STATUS_URL),
+						this.currentProgram.getName());
+			}
+			println("Token Generation Complete");
 		}
 
 	}
