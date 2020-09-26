@@ -272,12 +272,12 @@ public class ClangTokenGenerator extends GhidraScript {
 			String json = createJson(functionsMap);
 
 			if (json != null && !json.isBlank()) {
-				sendData(json, "localhost");
-				sendData(String.format("{\"status\": \"complete: %s\"}", ClangTokenGenerator.STATUS_ENDPOINT),
-						this.currentProgram.getName());
+				sendData(json, ClangTokenGenerator.STATUS_ENDPOINT);
+				sendData(String.format("{\"status\": \"complete: %s\"}", this.currentProgram.getName()),
+						ClangTokenGenerator.STATUS_ENDPOINT);
 			} else {
-				sendData(String.format("{\"status\": \"failed: %s\"}", ClangTokenGenerator.STATUS_ENDPOINT),
-						this.currentProgram.getName());
+				sendData(String.format("{\"status\": \"failed: %s\"}", this.currentProgram.getName()),
+						ClangTokenGenerator.STATUS_ENDPOINT);
 			}
 			println("Token Generation Complete");
 		}
