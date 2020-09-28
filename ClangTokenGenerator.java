@@ -6,9 +6,7 @@
 //@menupath
 //@toolbar
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -78,8 +76,9 @@ public class ClangTokenGenerator extends GhidraScript {
 	private static final int DECOMPILATION_TIMEOUT = 60;
 	private static final String ERRORED_FUNCTIONS_KEY = "erroredFunctions";
 	private static final String FUNCTIONS_KEY = "functions";
-	private static final String URL = "http://e6574316-f6f7-4891-abb3-bcb9672870af.mock.pstmn.io";
+	private static final String URL = "http://localhost";
 	private static final String STATUS_ENDPOINT = "/status";
+	private static final String POST_FUNCTION_DETAILS = "/postFunctionDetails";
 
 	/**
 	 * Decompile function.
@@ -216,8 +215,7 @@ public class ClangTokenGenerator extends GhidraScript {
 	 * @param endPoint the host name to send data do.
 	 */
 	private void sendData(String data, String endPoint) {
-		final int portNumber = 80;
-		final StringBuilder response = new StringBuilder();
+		final int portNumber = 8080;
 		int responseCode;
 
 		try {
@@ -234,14 +232,8 @@ public class ClangTokenGenerator extends GhidraScript {
 
 				responseCode = connection.getResponseCode();
 
-				if (responseCode < 300 && responseCode >= 200) {
-					String line = null;
-					try (BufferedReader bufferedReader = new BufferedReader(
-							new InputStreamReader(connection.getInputStream()))) {
-						while ((line = bufferedReader.readLine()) != null) {
-							response.append(line);
-						}
-					}
+				if (responseCode != 200) {
+					println("An error has occured sending data.");
 				}
 			}
 		} catch (IOException e) {
@@ -272,7 +264,7 @@ public class ClangTokenGenerator extends GhidraScript {
 			String json = createJson(functionsMap);
 
 			if (json != null && !json.isBlank()) {
-				sendData(json, ClangTokenGenerator.STATUS_ENDPOINT);
+				sendData(json, ClangTokenGenerator.POST_FUNCTION_DETAILS);
 				sendData(String.format("{\"status\": \"complete: %s\"}", this.currentProgram.getName()),
 						ClangTokenGenerator.STATUS_ENDPOINT);
 			} else {
