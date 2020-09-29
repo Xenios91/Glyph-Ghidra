@@ -36,9 +36,32 @@ import ghidra.program.model.symbol.SymbolIterator;
  */
 public class ClangTokenGenerator extends GhidraScript {
 
-	/**
-	 * The Class FunctionDetails.
-	 */
+	private class BinaryDetails {
+		private String binaryName = null;
+		private Map<String, List<FunctionDetails>> functionsMap = null;
+
+		public BinaryDetails(String binaryName, Map<String, List<FunctionDetails>> functionsMap) {
+			setBinaryName(binaryName);
+			setFunctionsMap(functionsMap);
+		}
+
+		public String getBinaryName() {
+			return binaryName;
+		}
+
+		public void setBinaryName(String binaryName) {
+			this.binaryName = binaryName;
+		}
+
+		public Map<String, List<FunctionDetails>> getFunctionsMap() {
+			return functionsMap;
+		}
+
+		public void setFunctionsMap(Map<String, List<FunctionDetails>> functionsMap) {
+			this.functionsMap = functionsMap;
+		}
+	}
+
 	private class FunctionDetails {
 		private String lowAddress;
 		private String highAddress;
@@ -197,11 +220,11 @@ public class ClangTokenGenerator extends GhidraScript {
 	 * @param functionsMap a map of good and errored functions from analysis.
 	 * @return a json of the functions map.
 	 */
-	private String createJson(Map<String, List<FunctionDetails>> functionsMap) {
+	private String createJson(BinaryDetails binaryDetails) {
 		Gson gson = new Gson();
 		String json = null;
 		try {
-			json = gson.toJson(functionsMap);
+			json = gson.toJson(binaryDetails);
 		} catch (Exception e) {
 			println(e.toString());
 		}
@@ -261,7 +284,8 @@ public class ClangTokenGenerator extends GhidraScript {
 			erroredFunctions
 					.forEach(function -> printf("Decompilation Error: %s\n", function.getTokenList().toString()));
 
-			String json = createJson(functionsMap);
+			BinaryDetails binaryDetails = new BinaryDetails(this.currentProgram.getName(), functionsMap);
+			String json = createJson(binaryDetails);
 
 			if (json != null && !json.isBlank()) {
 				sendData(json, ClangTokenGenerator.POST_FUNCTION_DETAILS);
