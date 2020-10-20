@@ -181,7 +181,7 @@ public class ClangTokenGenerator extends GhidraScript {
 
 			final Function function = functionManager.getFunctionAt(symbol.getAddress());
 
-			if (function != null && !function.isExternal()) {
+			if (function != null && !function.isExternal() && symbol.getName().contains("FUN_")) {
 				final DecompileResults dr = decomplib.decompileFunction(function,
 						ClangTokenGenerator.DECOMPILATION_TIMEOUT, null);
 				final FunctionDetails functionDetails = new FunctionDetails();
