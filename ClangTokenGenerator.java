@@ -66,6 +66,7 @@ public class ClangTokenGenerator extends GhidraScript {
 		private String lowAddress;
 		private String highAddress;
 		private List<String> tokenList;
+		private int parameterCount;
 
 		public String getLowAddress() {
 			return lowAddress;
@@ -92,6 +93,14 @@ public class ClangTokenGenerator extends GhidraScript {
 
 		public void setTokenList(List<String> tokenList) {
 			this.tokenList = tokenList;
+		}
+
+		public int getParameterCount() {
+			return parameterCount;
+		}
+
+		public void setParameterCount(int parameterCount) {
+			this.parameterCount = parameterCount;
 		}
 	}
 
@@ -180,7 +189,6 @@ public class ClangTokenGenerator extends GhidraScript {
 		symbolIter.forEachRemaining(symbol -> {
 
 			final Function function = functionManager.getFunctionAt(symbol.getAddress());
-
 			if (function != null && !function.isExternal()) {
 				final DecompileResults dr = decomplib.decompileFunction(function,
 						ClangTokenGenerator.DECOMPILATION_TIMEOUT, null);
@@ -205,6 +213,7 @@ public class ClangTokenGenerator extends GhidraScript {
 					}
 				});
 
+				functionDetails.setParameterCount(function.getParameterCount());
 				functionDetails.setTokenList(newTokenList);
 				functionsMap.get(key).add(functionDetails);
 			}
@@ -271,9 +280,11 @@ public class ClangTokenGenerator extends GhidraScript {
 	 */
 	@Override
 	public void run() throws Exception {
-		sendData(String.format("{\"status\": \"starting for: %s\"}", this.currentProgram.getName()),
+		sendData(String.format("{\"status\": \"processing\" \"name\": \"%s\"}", this.currentProgram.getName()),
 				ClangTokenGenerator.STATUS_ENDPOINT);
-		this.decomplib = setUpDecompiler(this.currentProgram);
+		this.decomplib =
+
+				setUpDecompiler(this.currentProgram);
 		if (!this.decomplib.openProgram(this.currentProgram)) {
 			printf("Decompiler error: %s\n", this.decomplib.getLastMessage());
 		} else {
@@ -289,10 +300,10 @@ public class ClangTokenGenerator extends GhidraScript {
 
 			if (json != null && !json.isBlank()) {
 				sendData(json, ClangTokenGenerator.POST_FUNCTION_DETAILS);
-				sendData(String.format("{\"status\": \"complete: %s\"}", this.currentProgram.getName()),
+				sendData(String.format("{\"status\": \"complete\" \"name\": \"%s\"}", this.currentProgram.getName()),
 						ClangTokenGenerator.STATUS_ENDPOINT);
 			} else {
-				sendData(String.format("{\"status\": \"failed: %s\"}", this.currentProgram.getName()),
+				sendData(String.format("{\"status\": \"failed\" \"name\": \"%s\"}", this.currentProgram.getName()),
 						ClangTokenGenerator.STATUS_ENDPOINT);
 			}
 			println("Token Generation Complete");
