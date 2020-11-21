@@ -36,6 +36,14 @@ import ghidra.program.model.symbol.SymbolIterator;
  */
 public class ClangTokenGenerator extends GhidraScript {
 
+	private DecompInterface decomplib;
+	private static final int DECOMPILATION_TIMEOUT = 60;
+	private static final String ERRORED_FUNCTIONS_KEY = "erroredFunctions";
+	private static final String FUNCTIONS_KEY = "functions";
+	private static final String URL = "http://localhost";
+	private static final String STATUS_ENDPOINT = "/status";
+	private static final String POST_FUNCTION_DETAILS = "/postFunctionDetails";
+
 	private class BinaryDetails {
 		private String binaryName = null;
 		private Map<String, List<FunctionDetails>> functionsMap = null;
@@ -103,14 +111,6 @@ public class ClangTokenGenerator extends GhidraScript {
 			this.parameterCount = parameterCount;
 		}
 	}
-
-	private DecompInterface decomplib;
-	private static final int DECOMPILATION_TIMEOUT = 60;
-	private static final String ERRORED_FUNCTIONS_KEY = "erroredFunctions";
-	private static final String FUNCTIONS_KEY = "functions";
-	private static final String URL = "http://localhost";
-	private static final String STATUS_ENDPOINT = "/status";
-	private static final String POST_FUNCTION_DETAILS = "/postFunctionDetails";
 
 	/**
 	 * Decompile function.
