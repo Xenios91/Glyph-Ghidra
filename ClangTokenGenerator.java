@@ -75,6 +75,8 @@ public class ClangTokenGenerator extends GhidraScript {
 		private String highAddress;
 		private List<String> tokenList;
 		private int parameterCount;
+		private String functionName;
+		private String returnType;
 
 		public String getLowAddress() {
 			return lowAddress;
@@ -109,6 +111,22 @@ public class ClangTokenGenerator extends GhidraScript {
 
 		public void setParameterCount(int parameterCount) {
 			this.parameterCount = parameterCount;
+		}
+
+		public String getFunctionName() {
+			return functionName;
+		}
+
+		public void setFunctionName(String functionName) {
+			this.functionName = functionName;
+		}
+
+		public String getReturnType() {
+			return returnType;
+		}
+
+		public void setReturnType(String returnType) {
+			this.returnType = returnType;
 		}
 	}
 
@@ -212,6 +230,13 @@ public class ClangTokenGenerator extends GhidraScript {
 						newTokenList.add(token.toString());
 					}
 				});
+
+				functionDetails.setFunctionName(function.getName());
+				if (function.getReturnType().toString().contains("undefined")) {
+					functionDetails.setReturnType("undefined");
+				} else {
+					functionDetails.setReturnType(function.getReturnType().toString());
+				}
 
 				functionDetails.setParameterCount(function.getParameterCount());
 				functionDetails.setTokenList(newTokenList);
