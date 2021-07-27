@@ -1,7 +1,9 @@
+package scripts;
 /*
  * Ghidra Script by Xenios91
  * For Glyph
  */
+
 //@keybinding
 //@menupath
 //@toolbar
@@ -54,7 +56,7 @@ public class ClangTokenGenerator extends GhidraScript {
 		}
 
 		public String getBinaryName() {
-			return binaryName;
+			return this.binaryName;
 		}
 
 		public void setBinaryName(String binaryName) {
@@ -62,7 +64,7 @@ public class ClangTokenGenerator extends GhidraScript {
 		}
 
 		public Map<String, List<FunctionDetails>> getFunctionsMap() {
-			return functionsMap;
+			return this.functionsMap;
 		}
 
 		public void setFunctionsMap(Map<String, List<FunctionDetails>> functionsMap) {
@@ -79,7 +81,7 @@ public class ClangTokenGenerator extends GhidraScript {
 		private String returnType;
 
 		public String getLowAddress() {
-			return lowAddress;
+			return this.lowAddress;
 		}
 
 		public void setLowAddress(String lowAddress) {
@@ -87,7 +89,7 @@ public class ClangTokenGenerator extends GhidraScript {
 		}
 
 		public String getHighAddress() {
-			return highAddress;
+			return this.highAddress;
 		}
 
 		public void setHighAddress(String highAddress) {
@@ -95,10 +97,10 @@ public class ClangTokenGenerator extends GhidraScript {
 		}
 
 		public List<String> getTokenList() {
-			if (tokenList == null) {
+			if (this.tokenList == null) {
 				this.tokenList = new ArrayList<>();
 			}
-			return tokenList;
+			return this.tokenList;
 		}
 
 		public void setTokenList(List<String> tokenList) {
@@ -106,7 +108,7 @@ public class ClangTokenGenerator extends GhidraScript {
 		}
 
 		public int getParameterCount() {
-			return parameterCount;
+			return this.parameterCount;
 		}
 
 		public void setParameterCount(int parameterCount) {
@@ -114,7 +116,7 @@ public class ClangTokenGenerator extends GhidraScript {
 		}
 
 		public String getFunctionName() {
-			return functionName;
+			return this.functionName;
 		}
 
 		public void setFunctionName(String functionName) {
@@ -122,7 +124,7 @@ public class ClangTokenGenerator extends GhidraScript {
 		}
 
 		public String getReturnType() {
-			return returnType;
+			return this.returnType;
 		}
 
 		public void setReturnType(String returnType) {
@@ -186,7 +188,7 @@ public class ClangTokenGenerator extends GhidraScript {
 	 *                        of its function.
 	 * @param function        the function to retrieve the address space of.
 	 */
-	private void generateAddressRange(FunctionDetails functionDetails, Function function) {
+	private static void generateAddressRange(FunctionDetails functionDetails, Function function) {
 		functionDetails.setLowAddress(function.getBody().getMinAddress().toString());
 		functionDetails.setHighAddress(function.getBody().getMaxAddress().toString());
 	}
@@ -323,7 +325,7 @@ public class ClangTokenGenerator extends GhidraScript {
 			BinaryDetails binaryDetails = new BinaryDetails(this.currentProgram.getName(), functionsMap);
 			String json = createJson(binaryDetails);
 
-			if (json != null && !json.isBlank()) {
+			if (json != null && !json.isBlank() && json.isEmpty()) {
 				sendData(json, ClangTokenGenerator.POST_FUNCTION_DETAILS);
 				sendData(String.format("{\"status\": \"complete\" \"name\": \"%s\"}", this.currentProgram.getName()),
 						ClangTokenGenerator.STATUS_ENDPOINT);
