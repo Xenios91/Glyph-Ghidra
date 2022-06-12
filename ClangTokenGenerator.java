@@ -1,4 +1,4 @@
-package scripts;
+
 /*
  * Ghidra Script by Xenios91
  * For Glyph
@@ -44,13 +44,13 @@ public class ClangTokenGenerator extends GhidraScript {
 	private static final String FUNCTIONS_KEY = "functions";
 	private static final String URL = "http://localhost";
 	private static final String STATUS_ENDPOINT = "/status";
-	private static final String POST_FUNCTION_DETAILS = "/postFunctionDetails";
+	private static final String POST_FUNCTION_DETAILS = "/train";
 
 	private class BinaryDetails {
 		private String binaryName = null;
 		private Map<String, List<FunctionDetails>> functionsMap = null;
 
-		public BinaryDetails(String binaryName, Map<String, List<FunctionDetails>> functionsMap) {
+		public BinaryDetails(final String binaryName, final Map<String, List<FunctionDetails>> functionsMap) {
 			setBinaryName(binaryName);
 			setFunctionsMap(functionsMap);
 		}
@@ -59,7 +59,7 @@ public class ClangTokenGenerator extends GhidraScript {
 			return this.binaryName;
 		}
 
-		public void setBinaryName(String binaryName) {
+		public void setBinaryName(final String binaryName) {
 			this.binaryName = binaryName;
 		}
 
@@ -67,7 +67,7 @@ public class ClangTokenGenerator extends GhidraScript {
 			return this.functionsMap;
 		}
 
-		public void setFunctionsMap(Map<String, List<FunctionDetails>> functionsMap) {
+		public void setFunctionsMap(final Map<String, List<FunctionDetails>> functionsMap) {
 			this.functionsMap = functionsMap;
 		}
 	}
@@ -84,7 +84,7 @@ public class ClangTokenGenerator extends GhidraScript {
 			return this.lowAddress;
 		}
 
-		public void setLowAddress(String lowAddress) {
+		public void setLowAddress(final String lowAddress) {
 			this.lowAddress = lowAddress;
 		}
 
@@ -92,7 +92,7 @@ public class ClangTokenGenerator extends GhidraScript {
 			return this.highAddress;
 		}
 
-		public void setHighAddress(String highAddress) {
+		public void setHighAddress(final String highAddress) {
 			this.highAddress = highAddress;
 		}
 
@@ -103,7 +103,7 @@ public class ClangTokenGenerator extends GhidraScript {
 			return this.tokenList;
 		}
 
-		public void setTokenList(List<String> tokenList) {
+		public void setTokenList(final List<String> tokenList) {
 			this.tokenList = tokenList;
 		}
 
@@ -111,7 +111,7 @@ public class ClangTokenGenerator extends GhidraScript {
 			return this.parameterCount;
 		}
 
-		public void setParameterCount(int parameterCount) {
+		public void setParameterCount(final int parameterCount) {
 			this.parameterCount = parameterCount;
 		}
 
@@ -119,7 +119,7 @@ public class ClangTokenGenerator extends GhidraScript {
 			return this.functionName;
 		}
 
-		public void setFunctionName(String functionName) {
+		public void setFunctionName(final String functionName) {
 			this.functionName = functionName;
 		}
 
@@ -127,7 +127,7 @@ public class ClangTokenGenerator extends GhidraScript {
 			return this.returnType;
 		}
 
-		public void setReturnType(String returnType) {
+		public void setReturnType(final String returnType) {
 			this.returnType = returnType;
 		}
 	}
@@ -138,14 +138,14 @@ public class ClangTokenGenerator extends GhidraScript {
 	 * @param f the function to decompile.
 	 * @return the high function of the decompiled function.
 	 */
-	public HighFunction decompileFunction(Function f) {
+	public HighFunction decompileFunction(final Function f) {
 		HighFunction hfunction = null;
 
 		try {
-			DecompileResults dRes = this.decomplib.decompileFunction(f, this.decomplib.getOptions().getDefaultTimeout(),
-					getMonitor());
+			final DecompileResults dRes = this.decomplib.decompileFunction(f,
+					this.decomplib.getOptions().getDefaultTimeout(), getMonitor());
 			hfunction = dRes.getHighFunction();
-		} catch (Exception exc) {
+		} catch (final Exception exc) {
 			printf("EXCEPTION IN DECOMPILATION!\n");
 			exc.printStackTrace();
 		}
@@ -159,16 +159,16 @@ public class ClangTokenGenerator extends GhidraScript {
 	 * @param program the program to decompile.
 	 * @return the decomp interface
 	 */
-	private DecompInterface setUpDecompiler(Program program) {
-		DecompInterface decompInterface = new DecompInterface();
+	private DecompInterface setUpDecompiler(final Program program) {
+		final DecompInterface decompInterface = new DecompInterface();
 
 		DecompileOptions options;
 		options = new DecompileOptions();
-		PluginTool tool = this.state.getTool();
+		final PluginTool tool = this.state.getTool();
 		if (tool != null) {
-			OptionsService service = tool.getService(OptionsService.class);
+			final OptionsService service = tool.getService(OptionsService.class);
 			if (service != null) {
-				ToolOptions opt = service.getOptions("Decompiler");
+				final ToolOptions opt = service.getOptions("Decompiler");
 				options.grabFromToolAndProgram(null, opt, program);
 			}
 		}
@@ -188,7 +188,7 @@ public class ClangTokenGenerator extends GhidraScript {
 	 *                        of its function.
 	 * @param function        the function to retrieve the address space of.
 	 */
-	private static void generateAddressRange(FunctionDetails functionDetails, Function function) {
+	private static void generateAddressRange(final FunctionDetails functionDetails, final Function function) {
 		functionDetails.setLowAddress(function.getBody().getMinAddress().toString());
 		functionDetails.setHighAddress(function.getBody().getMaxAddress().toString());
 	}
@@ -210,10 +210,10 @@ public class ClangTokenGenerator extends GhidraScript {
 
 			final Function function = functionManager.getFunctionAt(symbol.getAddress());
 			if (function != null && !function.isExternal()) {
-				final DecompileResults dr = decomplib.decompileFunction(function,
+				final DecompileResults dr = this.decomplib.decompileFunction(function,
 						ClangTokenGenerator.DECOMPILATION_TIMEOUT, null);
 				final FunctionDetails functionDetails = new FunctionDetails();
-				generateAddressRange(functionDetails, function);
+				ClangTokenGenerator.generateAddressRange(functionDetails, function);
 				final List<ClangNode> tokenList = new ArrayList<>();
 				dr.getCCodeMarkup().flatten(tokenList);
 
@@ -256,12 +256,12 @@ public class ClangTokenGenerator extends GhidraScript {
 	 * @param functionsMap a map of good and errored functions from analysis.
 	 * @return a json of the functions map.
 	 */
-	private String createJson(BinaryDetails binaryDetails) {
-		Gson gson = new Gson();
+	private String createJson(final BinaryDetails binaryDetails) {
+		final Gson gson = new Gson();
 		String json = null;
 		try {
 			json = gson.toJson(binaryDetails);
-		} catch (Exception e) {
+		} catch (final Exception e) {
 			println(e.toString());
 		}
 		return json;
@@ -273,13 +273,13 @@ public class ClangTokenGenerator extends GhidraScript {
 	 * @param data     the data to send to the server.
 	 * @param endPoint the host name to send data do.
 	 */
-	private void sendData(String data, String endPoint) {
-		final int portNumber = 8080;
+	private void sendData(final String data, final String endPoint) {
+		final int portNumber = 5000;
 		int responseCode;
 
 		try {
-			URL url = new URL(ClangTokenGenerator.URL + ":" + portNumber + endPoint);
-			HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+			final URL url = new URL(ClangTokenGenerator.URL + ":" + portNumber + endPoint);
+			final HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 			connection.setRequestMethod("POST");
 			connection.setDoOutput(true);
 			connection.setFixedLengthStreamingMode(data.length());
@@ -295,7 +295,7 @@ public class ClangTokenGenerator extends GhidraScript {
 					println("An error has occured sending data.");
 				}
 			}
-		} catch (IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
 		}
 	}
@@ -315,15 +315,15 @@ public class ClangTokenGenerator extends GhidraScript {
 		if (!this.decomplib.openProgram(this.currentProgram)) {
 			printf("Decompiler error: %s\n", this.decomplib.getLastMessage());
 		} else {
-			Map<String, List<FunctionDetails>> functionsMap = generateTokens();
-			List<FunctionDetails> functions = functionsMap.get(ClangTokenGenerator.FUNCTIONS_KEY);
-			List<FunctionDetails> erroredFunctions = functionsMap.get(ClangTokenGenerator.ERRORED_FUNCTIONS_KEY);
+			final Map<String, List<FunctionDetails>> functionsMap = generateTokens();
+			final List<FunctionDetails> functions = functionsMap.get(ClangTokenGenerator.FUNCTIONS_KEY);
+			final List<FunctionDetails> erroredFunctions = functionsMap.get(ClangTokenGenerator.ERRORED_FUNCTIONS_KEY);
 			functions.forEach(function -> printf("Function found: %s\n", function.getTokenList().toString()));
 			erroredFunctions
 					.forEach(function -> printf("Decompilation Error: %s\n", function.getTokenList().toString()));
 
-			BinaryDetails binaryDetails = new BinaryDetails(this.currentProgram.getName(), functionsMap);
-			String json = createJson(binaryDetails);
+			final BinaryDetails binaryDetails = new BinaryDetails(this.currentProgram.getName(), functionsMap);
+			final String json = createJson(binaryDetails);
 
 			if (json != null && !json.isBlank() && json.isEmpty()) {
 				sendData(json, ClangTokenGenerator.POST_FUNCTION_DETAILS);
