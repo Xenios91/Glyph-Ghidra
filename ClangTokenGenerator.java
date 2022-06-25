@@ -15,6 +15,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -48,20 +49,25 @@ public class ClangTokenGenerator extends GhidraScript {
 	private static final String POST_FUNCTION_DETAILS = "/train";
 
 	private class BinaryDetails {
-		private String binaryName = null;
+		private String taskName = null;
+		private String modelName = null;
+		private String type = null;
 		private Map<String, List<FunctionDetails>> functionsMap = null;
 
-		public BinaryDetails(final String binaryName, final Map<String, List<FunctionDetails>> functionsMap) {
-			setBinaryName(binaryName);
+		public BinaryDetails(final String taskName, final String modelName, final String type,
+				final Map<String, List<FunctionDetails>> functionsMap) {
+			setTaskName(taskName);
+			setModelName(modelName);
+			setType(type);
 			setFunctionsMap(functionsMap);
 		}
 
-		public String getBinaryName() {
-			return this.binaryName;
+		public String getTaskName() {
+			return this.taskName;
 		}
 
-		public void setBinaryName(final String binaryName) {
-			this.binaryName = binaryName;
+		public void setTaskName(final String binaryName) {
+			this.taskName = binaryName;
 		}
 
 		public Map<String, List<FunctionDetails>> getFunctionsMap() {
@@ -70,6 +76,22 @@ public class ClangTokenGenerator extends GhidraScript {
 
 		public void setFunctionsMap(final Map<String, List<FunctionDetails>> functionsMap) {
 			this.functionsMap = functionsMap;
+		}
+
+		public String getModelName() {
+			return this.modelName;
+		}
+
+		public void setModelName(final String modelName) {
+			this.modelName = modelName;
+		}
+
+		public String getType() {
+			return this.type;
+		}
+
+		public void setType(final String type) {
+			this.type = type;
 		}
 	}
 
@@ -365,9 +387,18 @@ public class ClangTokenGenerator extends GhidraScript {
 
 		} catch (final IOException e) {
 			e.printStackTrace();
-		} catch (InterruptedException e) {
+		} catch (final InterruptedException e) {
 			e.printStackTrace();
 		}
+	}
+
+	public Map<String, String> parseArgs(final String[] scriptArgs) {
+		final Map<String, String> argsMap = new HashMap<>();
+		for (final String arg : scriptArgs) {
+			final String[] split = arg.split("=");
+			argsMap.put(split[0], split[1]);
+		}
+		return argsMap;
 	}
 
 	/**
@@ -377,7 +408,10 @@ public class ClangTokenGenerator extends GhidraScript {
 	 */
 	@Override
 	public void run() throws Exception {
-		sendData(String.format("{\"status\": \"processing\" \"name\": \"%s\"}", this.currentProgram.getName()),
+		final String[] scriptArgs = this.getScriptArgs();
+		final Map<String, String> argsMap = parseArgs(scriptArgs);
+
+		sendData(String.format("{\"status\": \"processing\" \"uuid\": \"%s\"}", argsMap.get("uuid")),
 				ClangTokenGenerator.STATUS_ENDPOINT);
 		this.decomplib =
 
@@ -393,15 +427,16 @@ public class ClangTokenGenerator extends GhidraScript {
 					.forEach(function -> printf("Decompilation Error: %s\n", function.getTokenList().toString()));
 			filterFunctions(functions);
 
-			final BinaryDetails binaryDetails = new BinaryDetails(this.currentProgram.getName(), functionsMap);
+			final BinaryDetails binaryDetails = new BinaryDetails(argsMap.get("task"), argsMap.get("model"),
+					argsMap.get("type"), functionsMap);
 			final String json = createJson(binaryDetails);
 
 			if (json != null && !json.isBlank() && json.isEmpty()) {
 				sendData(json, ClangTokenGenerator.POST_FUNCTION_DETAILS);
-				sendData(String.format("{\"status\": \"complete\" \"name\": \"%s\"}", this.currentProgram.getName()),
+				sendData(String.format("{\"status\": \"complete\" \"uuid\": \"%s\"}", argsMap.get("uuid")),
 						ClangTokenGenerator.STATUS_ENDPOINT);
 			} else {
-				sendData(String.format("{\"status\": \"failed\" \"name\": \"%s\"}", this.currentProgram.getName()),
+				sendData(String.format("{\"status\": \"failed\" \"uuid\": \"%s\"}", argsMap.get("uuid")),
 						ClangTokenGenerator.STATUS_ENDPOINT);
 			}
 			println("Token Generation Complete");
