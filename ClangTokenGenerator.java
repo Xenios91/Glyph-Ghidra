@@ -46,7 +46,7 @@ public class ClangTokenGenerator extends GhidraScript {
 	private static final String FUNCTIONS_KEY = "functions";
 	private static final String URL = "localhost";
 	private static final String STATUS_ENDPOINT = "/status";
-	private static final String POST_FUNCTION_DETAILS = "/train";
+	private static final String POST_FUNCTION_DETAILS = "/task";
 
 	private class BinaryDetails {
 		private String taskName = null;
