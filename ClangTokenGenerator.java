@@ -46,19 +46,23 @@ public class ClangTokenGenerator extends GhidraScript {
 	private static final String FUNCTIONS_KEY = "functions";
 	private static final String URL = "localhost";
 	private static final String STATUS_ENDPOINT = "/status";
-	private static final String POST_FUNCTION_DETAILS = "/task";
+	private static final String POST_FUNCTION_DETAILS = "/train";
 
 	private class BinaryDetails {
+		private String binaryName = null;
 		private String taskName = null;
 		private String modelName = null;
 		private String type = null;
+		private String uuid = null;
 		private Map<String, List<FunctionDetails>> functionsMap = null;
 
-		public BinaryDetails(final String taskName, final String modelName, final String type,
-				final Map<String, List<FunctionDetails>> functionsMap) {
+		public BinaryDetails(final String binaryName, final String taskName, final String modelName, final String type,
+				final String uuid, final Map<String, List<FunctionDetails>> functionsMap) {
+			setBinaryName(binaryName);
 			setTaskName(taskName);
 			setModelName(modelName);
 			setType(type);
+			setUuid(uuid);
 			setFunctionsMap(functionsMap);
 		}
 
@@ -92,6 +96,22 @@ public class ClangTokenGenerator extends GhidraScript {
 
 		public void setType(final String type) {
 			this.type = type;
+		}
+
+		public String getBinaryName() {
+			return binaryName;
+		}
+
+		public void setBinaryName(String binaryName) {
+			this.binaryName = binaryName;
+		}
+
+		public String getUuid() {
+			return uuid;
+		}
+
+		public void setUuid(String uuid) {
+			this.uuid = uuid;
 		}
 	}
 
@@ -427,8 +447,8 @@ public class ClangTokenGenerator extends GhidraScript {
 					.forEach(function -> printf("Decompilation Error: %s\n", function.getTokenList().toString()));
 			filterFunctions(functions);
 
-			final BinaryDetails binaryDetails = new BinaryDetails(argsMap.get("task"), argsMap.get("model"),
-					argsMap.get("type"), functionsMap);
+			final BinaryDetails binaryDetails = new BinaryDetails(this.getProgramFile().getName(), argsMap.get("task"),
+					argsMap.get("model"), argsMap.get("type"), argsMap.get("uuid"), functionsMap);
 			final String json = createJson(binaryDetails);
 
 			if (json != null && !json.isBlank() && json.isEmpty()) {
