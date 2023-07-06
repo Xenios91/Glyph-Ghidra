@@ -18,7 +18,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import java.io.*;
 import com.google.gson.Gson;
 
 import ghidra.app.decompiler.ClangNode;
@@ -45,8 +45,8 @@ public class ClangTokenGenerator extends GhidraScript {
 	private static final String ERRORED_FUNCTIONS_KEY = "erroredFunctions";
 	private static final String FUNCTIONS_KEY = "functions";
 	private static final String URL = "localhost";
-	private static final String STATUS_ENDPOINT = "/status";
-	private static final String POST_FUNCTION_DETAILS = "/train";
+	private static final String STATUS_ENDPOINT = "/statusUpdate";
+	private static final String POST_FUNCTION_DETAILS = "/task";
 
 	private class BinaryDetails {
 		private String binaryName = null;
@@ -431,7 +431,7 @@ public class ClangTokenGenerator extends GhidraScript {
 		final String[] scriptArgs = this.getScriptArgs();
 		final Map<String, String> argsMap = parseArgs(scriptArgs);
 
-		sendData(String.format("{\"status\": \"processing\" \"uuid\": \"%s\"}", argsMap.get("uuid")),
+		sendData(String.format("{\"status\": \"processing\", \"uuid\": \"%s\"}", argsMap.get("uuid")),
 				ClangTokenGenerator.STATUS_ENDPOINT);
 		this.decomplib =
 
@@ -450,13 +450,13 @@ public class ClangTokenGenerator extends GhidraScript {
 			final BinaryDetails binaryDetails = new BinaryDetails(this.getProgramFile().getName(), argsMap.get("task"),
 					argsMap.get("model"), argsMap.get("type"), argsMap.get("uuid"), functionsMap);
 			final String json = createJson(binaryDetails);
-
-			if (json != null && !json.isBlank() && json.isEmpty()) {
+			
+			if (json != null && !json.isBlank() && !json.isEmpty()) {
 				sendData(json, ClangTokenGenerator.POST_FUNCTION_DETAILS);
-				sendData(String.format("{\"status\": \"complete\" \"uuid\": \"%s\"}", argsMap.get("uuid")),
+				sendData(String.format("{\"status\": \"complete\", \"uuid\": \"%s\"}", argsMap.get("uuid")),
 						ClangTokenGenerator.STATUS_ENDPOINT);
 			} else {
-				sendData(String.format("{\"status\": \"failed\" \"uuid\": \"%s\"}", argsMap.get("uuid")),
+				sendData(String.format("{\"status\": \"failed\", \"uuid\": \"%s\"}", argsMap.get("uuid")),
 						ClangTokenGenerator.STATUS_ENDPOINT);
 			}
 			println("Token Generation Complete");
